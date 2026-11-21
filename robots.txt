@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://novacristal-campinas.vercel.app/sitemap.xml
+Sitemap: https://www.novacristalcampinas.com.br/sitemap.xml
