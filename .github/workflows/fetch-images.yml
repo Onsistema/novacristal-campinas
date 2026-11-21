@@ -1,0 +1,51 @@
+name: Baixar imagens
+on:
+  push:
+    paths:
+      - "img/urls.txt"
+      - ".github/workflows/fetch-images.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar e converter
+        run: |
+          pip install --quiet pillow cairosvg
+          python - <<'EOF'
+          import urllib.request, io
+          from PIL import Image
+          for line in open("img/urls.txt"):
+              line = line.strip()
+              if not line:
+                  continue
+              name, url = line.split(" ", 1)
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              data = urllib.request.urlopen(req, timeout=60).read()
+              im = Image.open(io.BytesIO(data)).convert("RGB")
+              im.thumbnail((1400, 1400))
+              im.save("img/" + name, "JPEG", quality=86, optimize=True, progressive=True)
+              print("ok", name, im.size)
+          import cairosvg
+          svg = open("logo.svg", "rb").read()
+          for size in (1024, 512):
+              png = cairosvg.svg2png(bytestring=svg, output_height=size)
+              logo = Image.open(io.BytesIO(png)).convert("RGBA")
+              bg = Image.new("RGB", (size, size), (255, 255, 255))
+              bg.paste(logo, ((size - logo.width) // 2, (size - logo.height) // 2), logo)
+              # versão com respiro (logo ocupa ~70%)
+              canvas = Image.new("RGB", (size, size), (255, 255, 255))
+              small = logo.copy(); small.thumbnail((int(size*0.7), int(size*0.7)))
+              canvas.paste(small, ((size - small.width) // 2, (size - small.height) // 2), small)
+              canvas.save(f"img/logo-{size}.png")
+          EOF
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add img
+          git diff --cached --quiet || git commit -m "Adiciona imagens otimizadas"
+          git push
